@@ -1,0 +1,5 @@
+pattern,label
+.*Normal.*,healthy
+.*IR.*,inner_race_fault
+.*OR.*,outer_race_fault
+.*Ball.*,ball_fault

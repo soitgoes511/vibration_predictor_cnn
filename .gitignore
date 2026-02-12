@@ -8,3 +8,4 @@ __pycache__/
 models/
 artifacts/
 data/exports/
+data/bootstrap/

@@ -16,6 +16,13 @@ class InfluxConfig:
     token: str
     measurement: str
     operation: str | None
+    device_ids: tuple[str, ...]
+    metadata_measurement: str
+    require_run_metadata: bool
+    expected_sample_rate_hz: int | None
+    expected_fft_size: int | None
+    expected_window: str | None
+    expected_fw_prefix: str | None
     start: str
     stop: str | None
 
@@ -54,12 +61,21 @@ class PathsConfig:
 
 
 @dataclass(frozen=True)
+class BootstrapConfig:
+    enabled: bool
+    npz_path: str
+    use_for_training_only: bool
+    max_samples_per_class: int | None
+
+
+@dataclass(frozen=True)
 class ExperimentConfig:
     influx: InfluxConfig
     dataset: DatasetConfig
     training: TrainingConfig
     model: ModelConfig
     paths: PathsConfig
+    bootstrap: BootstrapConfig
 
     @property
     def labels_path(self) -> Path:
@@ -87,6 +103,17 @@ def load_config(path: str | Path) -> ExperimentConfig:
 
     influx_raw = raw.get("influx", {})
     token = os.getenv("INFLUXDB_TOKEN", influx_raw.get("token", ""))
+    raw_device_ids = influx_raw.get("device_ids", [])
+    if raw_device_ids is None:
+        raw_device_ids = []
+    if not isinstance(raw_device_ids, (list, tuple)):
+        raise ValueError("influx.device_ids must be a list of strings")
+
+    expected_sample_rate = influx_raw.get("expected_sample_rate_hz")
+    expected_fft_size = influx_raw.get("expected_fft_size")
+    expected_window = influx_raw.get("expected_window")
+    expected_fw_prefix = influx_raw.get("expected_fw_prefix")
+
     influx = InfluxConfig(
         url=str(influx_raw.get("url", "http://127.0.0.1:8086")),
         org=str(influx_raw.get("org", "")),
@@ -94,6 +121,13 @@ def load_config(path: str | Path) -> ExperimentConfig:
         token=str(token),
         measurement=str(influx_raw.get("measurement", "accelfreq")),
         operation=influx_raw.get("operation"),
+        device_ids=tuple(str(v) for v in raw_device_ids if str(v).strip()),
+        metadata_measurement=str(influx_raw.get("metadata_measurement", "accelrunmeta")),
+        require_run_metadata=bool(influx_raw.get("require_run_metadata", False)),
+        expected_sample_rate_hz=int(expected_sample_rate) if expected_sample_rate is not None else None,
+        expected_fft_size=int(expected_fft_size) if expected_fft_size is not None else None,
+        expected_window=str(expected_window) if expected_window else None,
+        expected_fw_prefix=str(expected_fw_prefix) if expected_fw_prefix else None,
         start=str(influx_raw.get("start", "-30d")),
         stop=influx_raw.get("stop"),
     )
@@ -141,10 +175,20 @@ def load_config(path: str | Path) -> ExperimentConfig:
         output_dir=str(paths_raw.get("output_dir", "artifacts/default_run")),
     )
 
+    bootstrap_raw = raw.get("bootstrap", {})
+    max_samples_per_class = bootstrap_raw.get("max_samples_per_class")
+    bootstrap = BootstrapConfig(
+        enabled=bool(bootstrap_raw.get("enabled", False)),
+        npz_path=str(bootstrap_raw.get("npz_path", "data/bootstrap/cwru_bootstrap.npz")),
+        use_for_training_only=bool(bootstrap_raw.get("use_for_training_only", True)),
+        max_samples_per_class=int(max_samples_per_class) if max_samples_per_class is not None else None,
+    )
+
     return ExperimentConfig(
         influx=influx,
         dataset=dataset,
         training=training,
         model=model,
         paths=paths,
+        bootstrap=bootstrap,
     )

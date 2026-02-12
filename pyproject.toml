@@ -11,6 +11,7 @@ requires-python = ">=3.10"
 dependencies = [
   "numpy>=1.26",
   "pandas>=2.2",
+  "scipy>=1.10",
   "scikit-learn>=1.4",
   "PyYAML>=6.0",
   "influxdb-client>=1.43",
@@ -22,6 +23,7 @@ dependencies = [
 vp-train = "vibration_predictor.train:main"
 vp-evaluate = "vibration_predictor.evaluate:main"
 vp-predict = "vibration_predictor.predict:main"
+vp-bootstrap-cwru = "vibration_predictor.bootstrap_cwru:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

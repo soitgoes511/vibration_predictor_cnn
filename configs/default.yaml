@@ -4,13 +4,20 @@ influx:
   bucket: "expertise"
   token: ""
   measurement: "accelfreq"
+  metadata_measurement: "accelrunmeta"
   operation: "L9OP600"
+  device_ids: []
+  require_run_metadata: true
+  expected_sample_rate_hz: 3200
+  expected_fft_size: 4096
+  expected_window: "hann"
+  expected_fw_prefix: "1."
   start: "-30d"
   stop: "now()"
 
 dataset:
-  target_bins: 1024
-  min_bins_per_run: 128
+  target_bins: 2048
+  min_bins_per_run: 1800
   log_scale: true
   normalize_per_axis: true
 
@@ -32,3 +39,9 @@ model:
 paths:
   labels_csv: "data/labels.csv"
   output_dir: "artifacts/default_run"
+
+bootstrap:
+  enabled: false
+  npz_path: "data/bootstrap/cwru_bootstrap.npz"
+  use_for_training_only: true
+  max_samples_per_class: null
