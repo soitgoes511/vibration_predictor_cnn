@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vibration-predictor-cnn"
+version = "0.1.0"
+description = "CNN-based bearing fault prediction from ADXL313 FFT data in InfluxDB2"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "pandas>=2.2",
+  "scikit-learn>=1.4",
+  "PyYAML>=6.0",
+  "influxdb-client>=1.43",
+  "torch>=2.2",
+  "tqdm>=4.66",
+]
+
+[project.scripts]
+vp-train = "vibration_predictor.train:main"
+vp-evaluate = "vibration_predictor.evaluate:main"
+vp-predict = "vibration_predictor.predict:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

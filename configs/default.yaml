@@ -1,0 +1,34 @@
+influx:
+  url: "http://127.0.0.1:8086"
+  org: "expertise"
+  bucket: "expertise"
+  token: ""
+  measurement: "accelfreq"
+  operation: "L9OP600"
+  start: "-30d"
+  stop: "now()"
+
+dataset:
+  target_bins: 1024
+  min_bins_per_run: 128
+  log_scale: true
+  normalize_per_axis: true
+
+training:
+  random_seed: 42
+  batch_size: 32
+  epochs: 60
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  train_split: 0.7
+  val_split: 0.15
+  early_stopping_patience: 10
+
+model:
+  conv_channels: [32, 64, 128]
+  kernel_sizes: [7, 5, 3]
+  dropout: 0.3
+
+paths:
+  labels_csv: "data/labels.csv"
+  output_dir: "artifacts/default_run"
