@@ -154,6 +154,68 @@ Important knobs:
 - `paths.labels_csv` and `paths.output_dir`
 - `bootstrap.*` to include external labeled data
 
+## Why These Defaults Were Chosen
+
+The values in `configs/default.yaml` are baseline settings chosen to make the first version of the pipeline stable on small-to-medium vibration datasets, not to claim they are universally optimal. They are meant to be easy to reason about, easy to retrain, and conservative enough that you can tune from a working starting point.
+
+### Data and Preprocessing
+
+- `expected_sample_rate_hz: 3200`, `expected_fft_size: 4096`, `expected_window: "hann"`, `expected_fw_prefix: "1."`
+  These metadata filters are there to keep the training data physically comparable. A model can easily learn differences caused by a changed sample rate, FFT length, window, or firmware version instead of learning the bearing condition itself.
+- `target_bins: 2048`
+  Each run is interpolated onto a fixed frequency grid so the CNN always sees the same input width. `2048` keeps reasonably fine spectral detail while still being small enough for fast training and inference.
+- `min_bins_per_run: 1800`
+  Runs with too few frequency points are skipped because aggressive interpolation from a short spectrum would create noisy or misleading inputs. Keeping this threshold close to `target_bins` favors data quality over dataset size.
+- `log_scale: true`
+  FFT magnitudes often have a very wide dynamic range. `log1p` compresses large peaks so weaker but informative fault-related components are not drowned out.
+- `normalize_per_axis: true`
+  Each axis (`x_freq`, `y_freq`, `z_freq`) is standardized independently so the model focuses more on spectral shape than raw amplitude differences caused by mounting, gain, or operating variability.
+
+### Model Architecture
+
+- `conv_channels: [32, 64, 128]`
+  The network widens gradually as it goes deeper: the early layers learn simple local spectral patterns and the later layers combine them into more class-specific features. This is a standard "small to medium" CNN size that is usually enough for 1D spectra without making the model heavy.
+- `kernel_sizes: [7, 5, 3]`
+  The first layer uses a wider receptive field to catch broader spectral structures, then later layers use smaller kernels to refine narrower local patterns. Using odd kernel sizes also makes it easy to use symmetric padding and preserve alignment before pooling.
+- `MaxPool1d(kernel_size=2)` after each convolution block
+  Pooling reduces the frequency resolution step by step, which lowers compute cost and encourages the network to learn more robust features instead of memorizing exact bin positions.
+- `AdaptiveAvgPool1d(1)` before the classifier
+  The classifier receives a compact summary of each learned feature map instead of a very large flattened vector. That keeps the number of trainable parameters down and reduces overfitting risk.
+- `Linear(..., 128)` in the hidden classifier layer
+  A single medium-sized dense layer gives the model some non-linear mixing capacity after convolution without making the classifier dominate the parameter count.
+- `dropout: 0.3`
+  `0.3` is a moderate regularization setting: enough to fight overfitting on limited labeled runs, but not so aggressive that training becomes unstable.
+
+### Training Settings
+
+- `batch_size: 32`
+  This is a practical default that is usually stable on CPU or modest GPU hardware while still giving smooth enough gradient estimates.
+- `epochs: 60`
+  The upper bound is intentionally generous because early stopping is enabled. In practice, training often stops earlier.
+- `learning_rate: 0.001`
+  This is a common starting point for Adam-style optimizers and usually works well for a small CNN on standardized inputs.
+- `weight_decay: 0.0001`
+  A light amount of L2-style regularization helps generalization without overpowering the learning signal.
+- `train_split: 0.7`, `val_split: 0.15`, test = remaining `0.15`
+  The split keeps most labeled runs for training while still reserving separate validation and test sets.
+- `early_stopping_patience: 10`
+  Validation loss is allowed to plateau for a while before stopping, which helps avoid quitting too early because of a few noisy epochs.
+- Class-weighted `CrossEntropyLoss`
+  The training loop automatically upweights minority classes. That is important in predictive maintenance because healthy runs are often much more common than fault runs.
+- `AdamW`
+  AdamW is a strong default for this kind of tabular-to-tensor training workflow because it converges reliably with minimal tuning.
+
+### Why PyTorch Instead of TensorFlow?
+
+This project uses PyTorch mostly for pragmatic reasons:
+
+- The model is a straightforward custom `nn.Module`, and PyTorch makes that style of iterative experimentation very direct.
+- The training loop in `src/vibration_predictor/train.py` is explicit and easy to modify for class weighting, bootstrap data mixing, custom splits, and artifact export.
+- For a small 1D CNN like this, PyTorch gives all the building blocks needed without extra framework ceremony.
+- The README already recommends Python 3.12 specifically for Windows + PyTorch compatibility, so the current project setup is optimized around that stack.
+
+It is not because TensorFlow would be incapable here. A TensorFlow/Keras version would be entirely feasible. PyTorch was simply the more convenient framework for the baseline implementation in this repository.
+
 ## Output Artifacts
 
 After training:
